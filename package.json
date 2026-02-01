@@ -1,0 +1,16 @@
+{
+  "name": "compsix-assignment2",
+  "version": "1.0.0",
+  "description": "File processing utilities with Jest tests",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "jest": {
+    "testMatch": ["**/tests/**/*.test.js"]
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
+
