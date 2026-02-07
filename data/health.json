@@ -1,0 +1,14 @@
+[
+  {
+    "type": "sleep",
+    "value": 7
+  },
+  {
+    "type": "nutrition",
+    "value": "good"
+  },
+  {
+    "type": "sleep",
+    "value": 6
+  }
+]
