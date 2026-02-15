@@ -2,8 +2,9 @@
   "name": "compsix-assignment2",
   "version": "1.0.0",
   "description": "File processing utilities with Jest tests",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "jest"
   },
   "jest": {
@@ -16,6 +17,8 @@
   },
   "dependencies": {
     "csv-parser": "^3.2.0",
-    "dotenv": "^17.2.4"
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1"
   }
 }
+
