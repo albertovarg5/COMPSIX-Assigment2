@@ -1,101 +1,108 @@
-// server.js
 const express = require("express");
+const sqlite3 = require("sqlite3").verbose();
+const path = require("path");
 
 const app = express();
 app.use(express.json());
 
-// Starter data (you can change titles/authors if you want)
-const initialBooks = [
-  { id: 1, title: "Dune", author: "Frank Herbert", year: 1965, available: true },
-  { id: 2, title: "Neuromancer", author: "William Gibson", year: 1984, available: true },
-  { id: 3, title: "The Hobbit", author: "J.R.R. Tolkien", year: 1937, available: false },
-];
+const dbPath = path.join(__dirname, "database", "university.db");
+const db = new sqlite3.Database(dbPath);
 
-// Put books on app.locals so tests can reset cleanly
-function resetBooks() {
-  app.locals.books = initialBooks.map((b) => ({ ...b }));
-}
-resetBooks();
-
-/**
- * GET /api/books - get all books
- */
-app.get("/api/books", (req, res) => {
-  res.json(app.locals.books);
+/*
+GET /api/courses - get all courses
+*/
+app.get("/api/courses", (req, res) => {
+  db.all("SELECT * FROM courses", (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
 });
 
-/**
- * GET /api/books/:id - get book by id
- */
-app.get("/api/books/:id", (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  const book = app.locals.books.find((b) => b.id === id);
+/*
+GET /api/courses/:id - get one course
+*/
+app.get("/api/courses/:id", (req, res) => {
+  const id = Number(req.params.id);
 
-  if (!book) return res.status(404).json({ error: "Book not found" });
-  res.json(book);
+  db.get("SELECT * FROM courses WHERE id = ?", [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: "Course not found" });
+
+    res.json(row);
+  });
 });
 
-/**
- * POST /api/books - create a new book
- */
-app.post("/api/books", (req, res) => {
-  const { title, author, year, available } = req.body;
+/*
+POST /api/courses - create course
+*/
+app.post("/api/courses", (req, res) => {
+  const { courseCode, title, credits, description, semester } = req.body;
 
-  if (!title || !author) {
-    return res.status(400).json({ error: "title and author are required" });
+  if (!courseCode || !title || credits === undefined || !description || !semester) {
+    return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const books = app.locals.books;
-  const newId = books.length ? Math.max(...books.map((b) => b.id)) + 1 : 1;
+  const sql = `
+    INSERT INTO courses (courseCode, title, credits, description, semester)
+    VALUES (?, ?, ?, ?, ?)
+  `;
 
-  const newBook = {
-    id: newId,
-    title,
-    author,
-    year: year ?? null,
-    available: available ?? true,
-  };
+  db.run(sql, [courseCode, title, credits, description, semester], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
 
-  books.push(newBook);
-  res.status(201).json(newBook);
+    res.status(201).json({
+      id: this.lastID,
+      courseCode,
+      title,
+      credits,
+      description,
+      semester
+    });
+  });
 });
 
-/**
- * PUT /api/books/:id - update an existing book
- */
-app.put("/api/books/:id", (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  const book = app.locals.books.find((b) => b.id === id);
+/*
+PUT /api/courses/:id - update course
+*/
+app.put("/api/courses/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const { courseCode, title, credits, description, semester } = req.body;
 
-  if (!book) return res.status(404).json({ error: "Book not found" });
+  if (!courseCode || !title || credits === undefined || !description || !semester) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
-  // Update only fields provided
-  const { title, author, year, available } = req.body;
-  if (title !== undefined) book.title = title;
-  if (author !== undefined) book.author = author;
-  if (year !== undefined) book.year = year;
-  if (available !== undefined) book.available = available;
+  const sql = `
+    UPDATE courses
+    SET courseCode = ?, title = ?, credits = ?, description = ?, semester = ?
+    WHERE id = ?
+  `;
 
-  res.json(book);
+  db.run(sql, [courseCode, title, credits, description, semester, id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0)
+      return res.status(404).json({ error: "Course not found" });
+
+    res.json({ message: "Course updated successfully" });
+  });
 });
 
-/**
- * DELETE /api/books/:id - delete a book
- */
-app.delete("/api/books/:id", (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  const idx = app.locals.books.findIndex((b) => b.id === id);
+/*
+DELETE /api/courses/:id - delete course
+*/
+app.delete("/api/courses/:id", (req, res) => {
+  const id = Number(req.params.id);
 
-  if (idx === -1) return res.status(404).json({ error: "Book not found" });
+  db.run("DELETE FROM courses WHERE id = ?", [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0)
+      return res.status(404).json({ error: "Course not found" });
 
-  const deleted = app.locals.books.splice(idx, 1)[0];
-  res.json(deleted);
+    res.status(204).send();
+  });
 });
 
-// Only listen when running `node server.js` or `npm start`
-if (require.main === module) {
-  const PORT = 3000;
-  app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-}
-
-module.exports = { app, resetBooks };
+const PORT = 3001;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
