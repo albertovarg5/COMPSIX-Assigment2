@@ -1,30 +1,42 @@
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
+const { sequelize, Track } = require("./setup");
 
-const dbPath = path.join(__dirname, "university.db");
-const db = new sqlite3.Database(dbPath);
-
-const courses = [
-  ["CS101", "Intro Programming", 3, "Learn Python basics", "Fall 2024"],
-  ["BIO120", "General Biology", 3, "Introduction to biological principles", "Fall 2024"],
-  ["MATH150", "Calculus I", 4, "Basic calculus", "Fall 2024"],
-  ["ENG101", "Composition I", 3, "Academic writing and critical thinking", "Spring 2025"],
-  ["ME210", "Thermodynamics", 3, "Principles of thermodynamics and heat transfer", "Spring 2025"],
-  ["CS301", "Database Systems", 3, "Design and implementation of database systems", "Fall 2024"],
-  ["PHYS201", "Physics II", 4, "Electricity, magnetism, and modern physics", "Spring 2025"],
-  ["CS201", "Data Structures", 4, "Study of fundamental data structures and algorithms", "Spring 2025"],
+const sampleTracks = [
+  {
+    songTitle: "Blinding Lights",
+    artistName: "The Weeknd",
+    albumName: "After Hours",
+    genre: "Pop",
+    duration: 200,
+    releaseYear: 2019,
+  },
+  {
+    songTitle: "Levitating",
+    artistName: "Dua Lipa",
+    albumName: "Future Nostalgia",
+    genre: "Pop",
+    duration: 203,
+    releaseYear: 2020,
+  },
+  {
+    songTitle: "Shape of You",
+    artistName: "Ed Sheeran",
+    albumName: "Divide",
+    genre: "Pop",
+    duration: 233,
+    releaseYear: 2017,
+  },
 ];
 
-db.serialize(() => {
-  const stmt = db.prepare(`
-    INSERT INTO courses (courseCode, title, credits, description, semester)
-    VALUES (?, ?, ?, ?, ?)
-  `);
+async function seedDatabase() {
+  try {
+    await sequelize.authenticate();
+    await Track.bulkCreate(sampleTracks);
+    console.log("Database seeded.");
+  } catch (error) {
+    console.error("Seed error:", error);
+  } finally {
+    await sequelize.close();
+  }
+}
 
-  courses.forEach((c) => stmt.run(c));
-
-  stmt.finalize(() => {
-    console.log("✅ Seed data inserted into courses table.");
-    db.close();
-  });
-});
+seedDatabase();

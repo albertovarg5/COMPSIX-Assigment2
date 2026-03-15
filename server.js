@@ -1,108 +1,99 @@
 const express = require("express");
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
+const { Track } = require("./database/setup");
+require("dotenv").config();
 
 const app = express();
 app.use(express.json());
 
-const dbPath = path.join(__dirname, "database", "university.db");
-const db = new sqlite3.Database(dbPath);
-
-/*
-GET /api/courses - get all courses
-*/
-app.get("/api/courses", (req, res) => {
-  db.all("SELECT * FROM courses", (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
-
-/*
-GET /api/courses/:id - get one course
-*/
-app.get("/api/courses/:id", (req, res) => {
-  const id = Number(req.params.id);
-
-  db.get("SELECT * FROM courses WHERE id = ?", [id], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: "Course not found" });
-
-    res.json(row);
-  });
-});
-
-/*
-POST /api/courses - create course
-*/
-app.post("/api/courses", (req, res) => {
-  const { courseCode, title, credits, description, semester } = req.body;
-
-  if (!courseCode || !title || credits === undefined || !description || !semester) {
-    return res.status(400).json({ error: "Missing required fields" });
+// GET all tracks
+app.get("/api/tracks", async (req, res) => {
+  try {
+    const tracks = await Track.findAll();
+    res.json(tracks);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
   }
+});
 
-  const sql = `
-    INSERT INTO courses (courseCode, title, credits, description, semester)
-    VALUES (?, ?, ?, ?, ?)
-  `;
+// GET one track
+app.get("/api/tracks/:id", async (req, res) => {
+  try {
+    const track = await Track.findByPk(req.params.id);
 
-  db.run(sql, [courseCode, title, credits, description, semester], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
+    if (!track) {
+      return res.status(404).json({ error: "Track not found" });
+    }
 
-    res.status(201).json({
-      id: this.lastID,
-      courseCode,
-      title,
-      credits,
-      description,
-      semester
+    res.json(track);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST
+app.post("/api/tracks", async (req, res) => {
+  try {
+    const { songTitle, artistName, albumName, genre, duration, releaseYear } = req.body;
+
+    if (!songTitle || !artistName || !albumName || !genre) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const newTrack = await Track.create({
+      songTitle,
+      artistName,
+      albumName,
+      genre,
+      duration,
+      releaseYear,
     });
-  });
-});
 
-/*
-PUT /api/courses/:id - update course
-*/
-app.put("/api/courses/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const { courseCode, title, credits, description, semester } = req.body;
-
-  if (!courseCode || !title || credits === undefined || !description || !semester) {
-    return res.status(400).json({ error: "Missing required fields" });
+    res.status(201).json(newTrack);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
   }
-
-  const sql = `
-    UPDATE courses
-    SET courseCode = ?, title = ?, credits = ?, description = ?, semester = ?
-    WHERE id = ?
-  `;
-
-  db.run(sql, [courseCode, title, credits, description, semester, id], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0)
-      return res.status(404).json({ error: "Course not found" });
-
-    res.json({ message: "Course updated successfully" });
-  });
 });
 
-/*
-DELETE /api/courses/:id - delete course
-*/
-app.delete("/api/courses/:id", (req, res) => {
-  const id = Number(req.params.id);
+// PUT
+app.put("/api/tracks/:id", async (req, res) => {
+  try {
+    const track = await Track.findByPk(req.params.id);
 
-  db.run("DELETE FROM courses WHERE id = ?", [id], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0)
-      return res.status(404).json({ error: "Course not found" });
+    if (!track) {
+      return res.status(404).json({ error: "Track not found" });
+    }
 
-    res.status(204).send();
-  });
+    await track.update(req.body);
+    res.json(track);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
-const PORT = 3001;
+// DELETE
+app.delete("/api/tracks/:id", async (req, res) => {
+  try {
+    const deletedRows = await Track.destroy({
+      where: { trackId: req.params.id }
+    });
+
+    if (deletedRows === 0) {
+      return res.status(404).json({ error: "Track not found" });
+    }
+
+    res.json({ message: "Track deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+const PORT = process.env.PORT || 3001;
+
 app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
